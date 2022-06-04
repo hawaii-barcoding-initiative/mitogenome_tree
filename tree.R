@@ -5,6 +5,9 @@ library(rentrez)
 library(parallel)
 library(httr)
 library(XML)
+library(ape)
+
+# TODO: handle rRNAs
 
 # NCBI entrez API key
 api_key <- "<api_key>"
@@ -41,7 +44,7 @@ mt_species <- readHTMLTable(mitofish_url,header=T,as.data.frame = T, which=1,tri
 
 # download the mifish sequences. they don't provide accession numbers in their data table
 # or else I could avoid doing this. it's a lot to download just for a few numbers
-download <- FALSE
+download <- TRUE
 if (download) {
   mitofish <- "http://mitofish.aori.u-tokyo.ac.jp/files/mitogenomes.zip"
   mf_dir <- dir_create(here("data","mitogenomes"))
@@ -111,8 +114,11 @@ write_lines(gb_file,here("data","tree_mitogenomes.gb"))
 # now use this clever python script to separate out the protein-coding regions
 system(str_glue("python3 {here('coding_sequences.py')} {here('data','tree_mitogenomes.gb')} > {here('data','mitogenome_cds.tab')}"))
 
-# here's our prealignment directory
-dir_create(here("data","prealignment"))
+# here's our alignment directories
+pa_dir <- here("data","prealignment")
+al_dir <- here("data","alignment")
+dir_create(pa_dir)
+dir_create(al_dir)
 
 # this part could have just been done inside the python script but for
 # whatever reason I'm doing it back in this R script
@@ -128,7 +134,7 @@ coding_regions %>%
       pmap_chr(~{
         row <- list(...)
         str_c(
-          str_replace(str_glue(">{row$accession}-{row$species}-[{row$start}:{row$end}]")," ","_"),
+          str_replace(str_glue(">{row$accession}-{row$species}")," ","_"),
           "\n",
           row$nucleotides,
           collapse = "\n"
@@ -140,8 +146,81 @@ coding_regions %>%
 # now we can align the different coding regions (assumes you've got mafft installed)
 cores <- detectCores()
 # setup our command string for running mafft
-cmd <- str_glue("for f in {here('data','prealignment','*.fasta')}; do mafft --thread {cores} --auto $f > $(dirname $f)/$(basename $f .fasta)_aligned.fasta; done")
+cmd <- str_glue("for f in {path(pa_dir,'*.fasta')}; do mafft --thread {cores} --auto $f > {al_dir}/$(basename $f .fasta)_aligned.fasta; done")
 # run mafft
 system(cmd)
 
+gene_types <- coding_regions %>%
+  distinct(gene,type)
+
+# now we want to concatenate them all and keep a record of their location
+start <- 1
+concatenated <- NULL
+alignments <- dir_ls(al_dir,glob="*.fasta") %>%
+  map2_dfr(seq_along(.),~{
+    alignment <- read.dna(.x,"fasta")
+    len <- dim(alignment)[2]
+    gene <- str_extract(path_file(.x),"^(\\w+)(?=_aligned\\.fasta)")
+    if (is.null(concatenated)) {
+      concatenated <<- alignment
+    } else {
+      concatenated <<- cbind(concatenated,alignment,fill.with.gaps=TRUE)
+    }
+    row <- list("gene" = gene, "start" = as.numeric(start), "length" = as.numeric(len), "index" = .y)
+    start <<- start + len
+    return(row)
+  })
+
+# create partitionfinder.cfg file
+cfg <- str_c(
+  "### ALIGNMENT ###",
+  str_glue("alignment = concatenated_alignment.phy;"),
+  "",
+  "## BRANCHLENGTHS: linked | unlinked ##",
+  "branchlengths = linked;",
+  "",
+  "## MODELS OF EVOLUTION: all | allx | mrbayes | beast | gamma | gammai | <list> ##",
+  "models = mrbayes;",
+  "",
+  "# MODEL SELECCTION: AIC | AICc | BIC #",
+  "model_selection = aicc;",
+  "",
+  "## DATA BLOCKS: see manual for how to define ##",
+  "[data_blocks]",
+  str_c(pmap_chr(alignments,~{
+    row <- list(...)
+    gt <- gene_types %>%
+      filter(gene == row$gene) %>%
+      pull(type)
+    positions <- ""
+    if (gt[1] == "CDS") {
+      positions <- map_chr(seq(3),function(i) {
+        name <- str_glue("{row$gene}_codon{i}")
+        start <- row$start + i- 1
+        end <- row$start + row$length - 1
+        str_glue("{name} = {start}-{end}\\3;")
+      })
+    } else if (gt == "rRNA") {
+      name <- row$gene
+      start <- row$start
+      end <- row$start + row$length - 1
+      positions <- str_glue("{name} = {start}-{end};")
+    }
+    str_c(positions,collapse="\n")
+  }),collapse="\n"),
+  "",
+  "## SCHEMES, search: all | user | greedy | rcluster | rclusterf | kmeans ##",
+  "[schemes]",
+  "search = greedy;",
+  sep="\n"
+)
+
+# write partitionfinder data
+pf_dir <- here("data","partition")
+dir_create(pf_dir)
+
+# write concatenated alignment in phylip format
+cc_file <- path(pf_dir,"concatenated_alignment.phy")
+write.dna(concatenated,cc_file,format="sequential",nbcol=-1,colsep="")
+write_lines(cfg,path(pf_dir,"partition_finder.cfg"))
 
