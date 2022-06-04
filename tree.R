@@ -221,6 +221,8 @@ dir_create(pf_dir)
 
 # write concatenated alignment in phylip format
 cc_file <- path(pf_dir,"concatenated_alignment.phy")
+nex_file <- path(pf_dir,"concatenated_alignment.nex")
 write.dna(concatenated,cc_file,format="sequential",nbcol=-1,colsep="")
+write.nexus.data(concatenated,nex_file,interleaved=FALSE,datablock=FALSE)
 write_lines(cfg,path(pf_dir,"partition_finder.cfg"))
 
