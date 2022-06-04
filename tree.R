@@ -1,8 +1,6 @@
 library(tidyverse)
 library(here)
-library(fishtree)
 library(fs)
-library(castor)
 library(rentrez)
 library(parallel)
 library(httr)
