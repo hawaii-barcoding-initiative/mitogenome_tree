@@ -5,8 +5,11 @@ library(here)
 library(tidytree)
 
 
+# load the data we already have about the species in our alignment
 taxonomy <- read_csv(here("data","alignment_data.csv")) %>%
   mutate(label = str_replace(str_glue("{accession}-{species}")," ","_"))
+
+# this is a manually-generated list of tree tip pairs that corresponds to family-level splits 
 fam_combos <- list(
   c("NC_004417-Gymnothorax_kidako","NC_023980-Saurida_microlepis"),
   c("NC_004417-Gymnothorax_kidako","NC_024102-Gymnura_poecilura"),
@@ -19,19 +22,23 @@ fam_combos <- list(
   c("NC_009865-Ostracion_immaculatus","NC_010978-Canthigaster_coronata")
 )
 
-# load the two trees and reroot them
+# load the two trees and reroot them on the flat sharks, return them in a list
 trees <- c("bayes","ml") %>%
   set_names %>%
   purrr::map(~{
     tree <- switch(
-      .x,
+      .x, # figure out how to load the tree files
       bayes = treeio::read.mrbayes(here("data","tree",str_glue("{.x}.tre"))),
       ml = treeio::read.raxml(here("data","tree",str_glue("{.x}.tre")))
     )
     # reroot the tree on the flat sharks
+    # first, find the parent node so we know where to reroot
     rn <- MRCA(tree,c("NC_024102-Gymnura_poecilura", "OK104094-Gymnura_altavela"))
+    # calculate the new edge length
     len <- tree@phylo$edge.length[tree@phylo$edge[, 2] == rn]
+    # reroot the tree with the new edge length
     tree@phylo <- reorder(reroot(tree@phylo,rn,len/2))
+    # get 
     supp <- fam_combos %>%
       map_dfr(~{
         node <- MRCA(tree,c(.x[1],.x[2]))

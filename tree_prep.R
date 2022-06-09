@@ -9,7 +9,7 @@ library(ape)
 
 # TODO: handle rRNAs
 
-# NCBI entrez API key
+# NCBI entrez API key needs to be in the file data/api_key.txt
 api_key <- str_trim(read_file(here::here("data","api_key.txt")))
 
 # load study species
@@ -33,14 +33,6 @@ mt_species <- readHTMLTable(mitofish_url,header=T,as.data.frame = T, which=1,tri
     )
   ) %>%
   select(order,family,genus,species,accession)
-
-# mt_species <- read_csv(here("data","mitofish-species.csv")) %>%
-#   mutate(sci_name = str_glue("{genus} {species}"))
-
-# get taxon information from rfishbase
-# all_taxa <- load_taxa() %>%
-#   filter(Species %in% unique(c(study_species$sci_name,mt_species$sci_name))) %>%
-#   collect()
 
 # download the mifish sequences. they don't provide accession numbers in their data table
 # or else I could avoid doing this. it's a lot to download just for a few numbers
