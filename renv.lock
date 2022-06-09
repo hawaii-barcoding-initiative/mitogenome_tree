@@ -51,6 +51,14 @@
       "Hash": "45f0398006e83a5b10b72a90663d8d8c",
       "Requirements": []
     },
+    "Rcpp": {
+      "Package": "Rcpp",
+      "Version": "1.0.8.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "32e79b908fda56ee57fe518a8d37b864",
+      "Requirements": []
+    },
     "XML": {
       "Package": "XML",
       "Version": "3.99-0.9",
@@ -58,6 +66,18 @@
       "Repository": "CRAN",
       "Hash": "6e75b3884423e21eda89b424a98e091d",
       "Requirements": []
+    },
+    "ape": {
+      "Package": "ape",
+      "Version": "5.6-2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "894108412a7ec23d5de85cdcce871c8b",
+      "Requirements": [
+        "Rcpp",
+        "lattice",
+        "nlme"
+      ]
     },
     "askpass": {
       "Package": "askpass",

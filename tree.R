@@ -10,7 +10,7 @@ library(ape)
 # TODO: handle rRNAs
 
 # NCBI entrez API key
-api_key <- "<api_key>"
+api_key <- str_trim(read_file(here::here("data","api_key.txt")))
 
 # load study species
 study_species <- read_csv(here("data","study-species.csv")) %>%
