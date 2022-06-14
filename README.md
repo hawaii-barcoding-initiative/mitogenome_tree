@@ -1,4 +1,9 @@
 # mitogenome_tree
+
+
+[![DOI](https://zenodo.org/badge/499688327.svg)](https://zenodo.org/badge/latestdoi/499688327)
+
+
 Mitogenome phylogenetic tree workflow. This does two things
 
 1. `tree_prep.R` creates the concatenated alignment and partitionfinder config files (but it won't run partitionfinder or build the trees for you) 
