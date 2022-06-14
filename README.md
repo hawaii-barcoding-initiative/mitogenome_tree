@@ -11,12 +11,12 @@ Mitogenome phylogenetic tree workflow. This does two things
 
 ### how to run this thing:
 
-* install dependencies
-  open R and run `renv::restore()`
-  intstall mafft however you want, e.g. `conda install mafft`
-  make sure you've got python 3 with BioPython installed, like `pip3 install BioPython`
+* install dependencies 
+  open R and run `renv::restore()`  
+  install mafft however you want, e.g. `conda install mafft`  
+  make sure you've got python 3 with BioPython installed, like `pip3 install BioPython`  
 
-  you'll also need an anaconda instance with python 2 to run PartitionFinder, which is easily done:
+  you'll also need an anaconda instance with python 2 to run PartitionFinder, which is easily done:  
   ```bash
   $ curl -LO https://repo.anaconda.com/archive/Anaconda2-5.3.1-Linux-x86_64.sh
   $ bash Anaconda2-5.3.1-Linux-x86_64.sh -b -p ~/anaconda
