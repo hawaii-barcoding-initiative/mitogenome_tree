@@ -1,3 +1,4 @@
+# TODO: ML support values are correct but bayesian ones might be wonky
 library(tidyverse)
 library(ggtree)
 library(phytools)
@@ -5,6 +6,10 @@ library(here)
 library(tidytree)
 library(svglite)
 library(ochRe)
+library(treeio)
+
+
+source("reroot.R")
 
 
 # load the data we already have about the species in our alignment
@@ -25,13 +30,20 @@ fam_combos <- list(
   c("NC_009865-Ostracion_immaculatus","NC_010978-Canthigaster_coronata")
 )
 
-# load the two trees and reroot them on the flat sharks, return them in a list
+  # load the two trees and reroot them on the flat sharks, return them in a list
 trees <- c("bayes","ml") %>%
   set_names %>%
   purrr::map(~{
     tree <- switch(
       .x, # figure out how to load the tree files
-      bayes = treeio::read.mrbayes(here("data","output",str_glue("{.x}.tre"))),
+      bayes = {
+        treeio::read.mrbayes(here("data","output",str_glue("{.x}.tre"))) %>%
+          as_tibble() %>%
+          mutate(node = as.numeric(node)) %>%
+          as.treedata()
+        # t@data %>%
+        #   mutate(node = as.numeric(node))
+      },
       ml = treeio::read.raxml(here("data","output",str_glue("{.x}.tre")))
     )
     # reroot the tree on the flat sharks
@@ -40,7 +52,8 @@ trees <- c("bayes","ml") %>%
     # calculate the new edge length
     len <- tree@phylo$edge.length[tree@phylo$edge[, 2] == rn]
     # reroot the tree with the new edge length
-    tree@phylo <- reorder(reroot(tree@phylo,rn,len/2))
+    # we use a custom function that keeps all the associated node support values correct
+    tree <- reroot_treedata(tree,node=rn,len=len)
     # get the nodes at family-level splits and make it into a data frame. this is
     # a bunch of fairly convoluted stuff I did when I originally planned to show
     # support at only family- and genus-level nodes, but it contains logic that
@@ -52,7 +65,7 @@ trees <- c("bayes","ml") %>%
         node <- MRCA(tree,c(.x[1],.x[2]))
         list(node1=.x[1],node2=.x[2],parent=node,level="family")
       }) 
-    # append the genus-level splits
+      # append the genus-level splits
     supp <- supp %>%
       bind_rows(
         taxonomy %>%
@@ -60,7 +73,7 @@ trees <- c("bayes","ml") %>%
           group_map(~{
             gen_combos <- .x %>%
               distinct(genus,.keep_all = TRUE) %>%
-              pull(label) 
+              pull(label)
             if (length(gen_combos) > 1) {
               gen_combos %>%
                 combn(2,simplify = FALSE) %>%
@@ -71,7 +84,7 @@ trees <- c("bayes","ml") %>%
             }
           }) %>%
           map_dfr(~.x)
-      ) 
+      )
     
     # this allows us to label clades by family
     fam <- taxonomy %>%
@@ -132,8 +145,8 @@ fontsize <- 3
   geom_nodepoint(aes(fill=boot_bins,subset=bootstrap <= 95),shape=23,alpha=1,size=3) +
   # label posterior probabilities <= 95% for family- and genus-level splits
   # there are two calls because we nudge the label over less if there's a symbol taking up space there
-  geom_nodelab(aes(label=prob_percent,subset = prob <= 0.95 & (bootstrap > 95 | is.na(bootstrap))),hjust = -0.5,nudge_x = -0.03,size=fontsize) +
-  geom_nodelab(aes(label=prob_percent,subset = prob <= 0.95 & bootstrap <= 95),hjust = -0.5,nudge_x = -0.01,size=fontsize) +
+  geom_nodelab(aes(label=prob_percent,subset = prob <= 0.95 & (bootstrap > 95 | is.na(bootstrap)) & (level %in% c("family","genus"))  ),hjust = -0.5,nudge_x = -0.03,size=fontsize) +
+  geom_nodelab(aes(label=prob_percent,subset = prob <= 0.95 & bootstrap <= 95 & (level %in% c("family","genus"))),hjust = -0.5,nudge_x = -0.01,size=fontsize) +
   geom_treescale(x=2) +  # show a branch length scale
   geom_tiplab(aes(label=species,color=in_study,fontface=face)) +  # label species
   # label families
