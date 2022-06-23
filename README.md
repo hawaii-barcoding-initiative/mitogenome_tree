@@ -11,7 +11,7 @@ Mitogenome phylogenetic tree workflow. This does two things
 
 ### how to run this thing:
 
-* install dependencies 
+* install dependencies  
   open R and run `renv::restore()`  
   install mafft however you want, e.g. `conda install mafft`  
   make sure you've got python 3 with BioPython installed, like `pip3 install BioPython`  
